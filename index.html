@@ -1,38 +1,501 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
+<html lang="tr"><head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mustafa Kemal Atatürk</title>
+    <meta charset="UTF-8">
+    <title>Wifi Robot Kontrol (MQTT)</title>
+    <style>
+    /* Temel Stiller ve Modern Tasarım */
+    :root {
+        --button-size: 80px;  /* Buton boyutu için değişken */
+        --button-font-size: 15px; /* Buton yazı boyutu için değişken */
+        --h2-font-size: 1.5em; /* Ana başlık için değişken */
+        --h3-font-size: 1.1em; /* Ara başlık için değişken */
+    }
+    
+    body {
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; /* Daha iyi mobil uyumlu fontlar */
+        color: #f1f1f1;
+        margin: 0;
+        padding: 10px; /* Kenar boşluğunu biraz azalttık */
+        text-align: center;
+        -webkit-tap-highlight-color: transparent; /* Mobilde dokunma vurgusunu kaldır */
+    }
+
+    .container {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Gölgeyi yumuşattık */
+        border-radius: 15px;
+        padding: 15px; /* İç boşluğu azalttık */
+        max-width: 95%; /* Genişliği esnek yaptık */
+        margin: 10px auto;
+        backdrop-filter: blur(10px);
+        box-sizing: border-box; /* padding ve border hesaba katılsın */
+    }
+
+    h2 {
+        font-size: var(--h2-font-size);
+        color: #00ffcc;
+        text-shadow: 1px 1px 5px #000;
+        margin-top: 5px;
+        margin-bottom: 5px;
+    }
+
+    h3 {
+        font-size: var(--h3-font-size);
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+        padding-bottom: 5px;
+        margin-top: 15px; /* Başlıklar arası mesafeyi azalttık */
+        margin-bottom: 10px;
+        color: #ffffff;
+    }
+
+    .control-section {
+        border-radius: 12px;
+        padding: 10px; /* Bölüm iç boşluğunu azalttık */
+        margin: 10px 0;
+        background-color: rgba(255,255,255,0.07);
+    }
+    
+    /* Butonlar: Değişkenler ile küçültüldü */
+    .button-grid { 
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 5px; /* Butonlar arası boşluk azaltıldı */
+        justify-items: center; 
+        align-items: center; 
+    }
+
+    .button {
+        background: linear-gradient(135deg, #00c6ff, #0072ff);
+        border: none;
+        color: white;
+        padding: 0; /* Padding kaldırıldı, boyutlar sabit */
+        font-size: var(--button-font-size);
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 12px;
+        width: var(--button-size); /* Değişken boyut */
+        height: calc(var(--button-size) * 0.7); /* Boyutu orantılı yaptık */
+        transition: 0.2s ease all;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .button:hover:not(:disabled) {
+        transform: scale(1.05);
+        background: linear-gradient(135deg, #00c6ff, #3fac3b);
+    }
+    .button:active:not(:disabled) { 
+        transform: scale(0.95); /* Tıklama efektini yumuşattık */
+    }
+
+    #dur {
+        background: linear-gradient(135deg, #ff416c, #ff4b2b);
+        font-weight: bold;
+    }
+    .button:disabled {
+        background: linear-gradient(135deg, #525252, #3d3d3d) !important;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    /* Servo Slider */
+    .servo-slider-modern-wrapper {
+        position: relative;
+        width: 100%; /* Slider'ı tam genişlik yaptık */
+        margin: 20px auto 10px auto;
+        height: 12px;
+        background: #ddd;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    /* ... (Slider'ın diğer stilleri aynı kalabilir) ... */
+    input[type=range]#servoSlider { appearance: none; -webkit-appearance: none; width: 100%; height: 100%; background: transparent; position: relative; z-index: 2; }
+    input[type=range]#servoSlider::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 6px rgba(0,255,204,0.7); cursor: pointer; position: relative; z-index: 3; }
+    input[type=range]#servoSlider::-moz-range-thumb { height: 24px; width: 24px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 6px rgba(0,255,204,0.7); cursor: pointer; position: relative; z-index: 3; }
+    .servo-slider-modern-wrapper::before { content: ''; position: absolute; top: 0; left: 0; height: 100%; background: linear-gradient(to right, #00ffcc, #0072ff); z-index: 1; width: var(--fill-width, 50%); transition: width 0.1s; }
+    .servo-value-display { font-size: 1.1em; font-weight: 600; color: #00ffcc; }
+    .servo-reset-button { background-color: #dc3545; color: white; border: none; padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 8px; margin-top: 15px; }
+
+
+    /* Diğer Ayarlar */
+    .settings-grid { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: stretch; /* Elemanların tam genişlikte olmasını sağlar */
+        gap: 10px;
+    }
+
+    .control-item { 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        width: 100%; 
+    }
+    .control-item label { 
+        font-weight: bold; 
+        margin-right: auto; /* Label'ı sola yaslar */
+        padding-left: 10px;
+        color: #eee;
+    }
+    .control-item input[type="checkbox"] { 
+        transform: scale(1.3); 
+        margin-right: 10px; /* Checkbox'ı sağa yaslar */
+        cursor: pointer;
+        accent-color: #00ffcc;
+    }
+
+    .toggle-button {
+        border: none;
+        color: white;
+        padding: 12px 15px; /* Düğme iç boşluğunu ayarladık */
+        font-size: 1em;
+        cursor: pointer;
+        border-radius: 10px;
+        width: 100%; /* Tam genişlik kaplar */
+        height: auto;
+        transition: 0.3s ease;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+        user-select: none;
+    }
+    .toggle-button:active { 
+        transform: scale(0.98); 
+    }
+    .toggle-button.on { background: linear-gradient(to right, #00b09b, #96c93d); }
+    .toggle-button.off { background: linear-gradient(to right, #4776e6, #8e54e9); }
+    
+    #status, .debug-info { font-size: 0.8em; } /* Durum ve debug yazısını küçülttük */
+    .debug-info { margin-top: 15px; }
+
+    /* MEDIA QUERY: Ekran 600px'den büyükse (tablet/PC), boyutları biraz büyütelim */
+    @media (min-width: 600px) {
+        :root {
+            --button-size: 100px;
+            --button-font-size: 18px;
+            --h2-font-size: 1.8em;
+            --h3-font-size: 1.2em;
+        }
+        .container {
+             max-width: 500px; /* PC'de maksimum genişliği sabitliyoruz */
+        }
+    }
+    
+    /* ... (modal, notification, fire-alarm stilleriniz aynı kalabilir) ... */
+    .fire-alarm, .notification { font-size: 1em; }
+    .modal-overlay { display: none; position: fixed; z-index: 20000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;}
+    .modal-content { background-color: #222; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .modal-content p { font-size: 1.1em; margin-bottom: 20px; }
+    .modal-button { border: none; color: white; padding: 12px 24px; text-align: center; font-size: 16px; margin: 4px 10px; cursor: pointer; border-radius: 8px; }
+    #confirmBtn { background-color: #28a745; }
+    #cancelBtn { background-color: #dc3545; }
+</style>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
+    <div id="fireAlarm" class="fire-alarm" style="display: none;">DİKKAT: YANGIN ALGILANDI!</div>
+    <div id="notification" class="notification"></div>
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <p id="modalText"></p>
+            <button id="confirmBtn" class="modal-button">Devam Et</button>
+            <button id="cancelBtn" class="modal-button">İptal</button>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Wifi Robot Kontrol (MQTT)</h2>
+        <div id="status">Durum: Bağlandı!</div>
+        <div id="debugInfo" class="debug-info">...</div>
+        
+        <div class="control-section">
+            <h3>Yön Tuşları</h3>
+            <div class="button-grid">
+                <div class="empty"></div><button id="ileri" class="button bcolor">İleri</button><div class="empty"></div>
+                <button id="sol" class="button bcolor">Sol</button><button id="dur" class="button bcolor">DUR</button><button id="sag" class="button bcolor">Sağ</button>
+                <div class="empty"></div><button id="geri" class="button bcolor">Geri</button><div class="empty"></div>
+            </div>
+        </div>
+        <div class="control-section">
+            <h3>Servo Kontrol</h3>
+            <div class="servo-slider-modern-wrapper"><input type="range" id="servoSlider" min="0" max="180" value="90" step="15"></div>
+            <span id="servoValueDisplay" class="servo-value-display">0°</span>
+            <button id="servoResetButton" class="servo-reset-button">Sıfırla</button>
+        </div>
+        <div class="control-section">
+            <h3>Ayarlar & Ek Kontroller</h3>
+            <div class="settings-grid">
+                 <div class="control-item"><button id="autoModeButton" class="toggle-button off">Otomatik Mod: Kapalı</button></div>
+                <div class="control-item"><label for="turboCheckbox">Turbo Modu:</label><input type="checkbox" id="turboCheckbox"></div>
+                <div class="control-item"><button id="suPompasibuton" class="toggle-button off">Su Pompası: Kapalı</button></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const statusElement = document.getElementById('status');
+        const debugElement = document.getElementById('debugInfo');
+        const brokerUrl = 'wss://36288b3a8cbb4d6f85c7ab5b43dc30db.s1.eu.hivemq.cloud:8884/mqtt';
+        const options = { clientId: 'WebRobotControl_' + Date.now(), username: 'hberks', password: 'Berk0808', clean: true, connectTimeout: 5000 };
+        const robotControlTopic = 'robot/control';
+        const robotModeTopic = 'robot/mode';
+        const alarmTopicWildcard = 'robot/alarm/#';
+        const statusTopicWildcard = 'robot/status/#';
+        const actionPromptTopic = 'robot/action_prompt';
+        const actionResponseTopic = 'robot/action_response';
+        const notificationTopic = 'robot/notification';
 
-    <header>
-        <h1>Gazi Mustafa Kemal Atatürk</h1>
-    </header>
+        let client = null;
+        let fireStates = { center: false, left: false, right: false };
+        let modalTimeout = null;
+        let countdownInterval = null;
+        let actionPromptShown = false;
+        let fireDismissed = false;
+        let dismissCooldownTimer = null;
+        
+        const servoSlider = document.getElementById('servoSlider');
+        const servoDisplay = document.getElementById('servoValueDisplay');
+        const pumpButton = document.getElementById('suPompasibuton');
+        const fireAlarmBanner = document.getElementById('fireAlarm');
 
-    <main>
-        <p>
-            Mustafa Kemal Atatürk (1881 - 10 Kasım 1938), Türkiye Cumhuriyeti'nin kurucusu ve ilk Cumhurbaşkanı'dır. Askeri dehası, devlet adamlığı ve reformist kişiliğiyle tarihe damgasını vurmuştur. Osmanlı İmparatorluğu'nun son döneminde Trablusgarp, Balkan ve Birinci Dünya Savaşları'nda önemli görevler üstlenmiş, Çanakkale Cephesi'ndeki başarılarıyla adını duyurmuştur.
-        </p>
+        function debugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugElement.textContent = `[${timestamp}] ${message}`;
+            console.log(`[${timestamp}] ${message}`);
+        }
 
-        <p>
-            Anadolu'da başlattığı Millî Mücadele ile Türk milletini bağımsızlık hedefine ulaştırmış, 29 Ekim 1923'te Türkiye Cumhuriyeti'ni kurmuştur. Hayatı boyunca yaptığı devrimlerle (harf devrimi, şapka devrimi vb.) Türkiye'yi modern ve çağdaş bir ulus haline getirmeyi hedeflemiştir.
-        </p>
-    </main>
+        function connectToBroker() {
+            updateStatus('Bağlanılıyor...', 'orange');
+            debugLog('MQTT bağlantısı kuruluyor...');
+            try {
+                client = mqtt.connect(brokerUrl, options);
+                client.on('connect', () => {
+                    updateStatus('Bağlandı!', 'green');
+                    debugLog('MQTT bağlandı, topic\'lere abone oluyor...');
+                    client.subscribe(alarmTopicWildcard);
+                    client.subscribe(actionPromptTopic);
+                    client.subscribe(statusTopicWildcard);
+                    client.subscribe(notificationTopic);
+                    
+                    setTimeout(() => {
+                        debugLog('ESP8266\'dan mevcut durum bilgileri isteniyor...');
+                        client.publish('robot/query', 'STATUS_REQUEST');
+                    }, 2000);
+                    
+                    setupEventHandlers();
+                });
+                client.on('error', (err) => {
+                    updateStatus('Bağlantı Hatası!', 'red');
+                    debugLog('MQTT Hatası: ' + err.message);
+                });
+                client.on('close', () => {
+                    updateStatus('Bağlantı Kesildi.', 'gray');
+                    debugLog('MQTT bağlantısı kesildi');
+                });
+                client.on('message', (topic, message) => {
+                    const msgString = message.toString();
+                    const topicParts = topic.split('/');
 
-    <hr>
+                    debugLog(`Mesaj alındı: ${topic} = ${msgString}`);
 
-    <footer>
-        <h2>Önemli Tarihler</h2>
-        <ul>
-            <li>**1881:** Selanik'te doğdu.</li>
-            <li>**19 Mayıs 1919:** Samsun'a çıkarak Millî Mücadele'yi başlattı.</li>
-            <li>**23 Nisan 1920:** Türkiye Büyük Millet Meclisi'ni kurdu.</li>
-            <li>**29 Ekim 1923:** Türkiye Cumhuriyeti'ni ilan etti.</li>
-            <li>**10 Kasım 1938:** İstanbul Dolmabahçe Sarayı'nda vefat etti.</li>
-        </ul>
-    </footer>
+                    if (topicParts[1] === 'alarm') {
+                        handleFireAlarm(topicParts[2], msgString);
+                    } else if (topic === actionPromptTopic) {
+                        if (!fireDismissed) {
+                            showConfirmationModal();
+                        } else {
+                            debugLog("Kullanıcı iptal etti, action_prompt gösterilmeyecek.");
+                        }
+                    } else if (topic === notificationTopic) {
+                        showNotification(msgString);
+                    } else if (topicParts[1] === 'status') {
+                        handleStatusUpdate(topicParts[2], msgString);
+                    }
+                });
+            } catch (error) { 
+                updateStatus('İstemci oluşturma hatası!', 'red');
+                debugLog('İstemci oluşturma hatası: ' + error.message);
+            }
+        }
 
-</body>
-</html>
+        function sendCommand(topic, cmd) {
+            if (client && client.connected) {
+                client.publish(topic, cmd);
+                debugLog(`Komut gönderildi: ${topic} = ${cmd}`);
+            } else {
+                updateStatus('Bağlı Değil!', 'red');
+                debugLog('MQTT bağlı değil, komut gönderilemedi');
+            }
+        }
+        
+        function updateStatus(message, color) { 
+            if (statusElement) { 
+                statusElement.textContent = 'Durum: ' + message; 
+                statusElement.style.color = color; 
+            } 
+        }
+        
+        function handleStatusUpdate(type, value) {
+            debugLog(`Durum güncellendi: ${type} = ${value}`);
+            
+            if (type === 'servo') {
+                updateServoUI(value);
+            } else if (type === 'pump') {
+                const isPumpOn = (value === 'ON');
+                updatePumpUI(isPumpOn);
+            }
+        }
+        
+        function updateServoUI(angle) {
+            const angleNum = parseInt(angle, 10);
+            if (document.activeElement !== servoSlider) {
+                servoSlider.value = angleNum;
+            }
+            const displayValue = angleNum - 90;
+            servoDisplay.textContent = displayValue + '°';
+            const wrapper = servoSlider.closest('.servo-slider-modern-wrapper');
+            if (wrapper) {
+                wrapper.style.setProperty('--fill-width', (angleNum / 180 * 100) + '%');
+            }
+        }
+
+        function updatePumpUI(isPumpOn) {
+            const currentlyOn = pumpButton.classList.contains('on');
+            if (currentlyOn !== isPumpOn) {
+                pumpButton.classList.remove('on', 'off');
+                pumpButton.classList.add(isPumpOn ? 'on' : 'off');
+                pumpButton.textContent = `Su Pompası: ${isPumpOn ? 'Açık' : 'Kapalı'}`;
+            }
+        }
+
+        function handleFireAlarm(location, status) {
+            fireStates[location] = (status === "FIRE");
+            fireAlarmBanner.style.display = Object.values(fireStates).some(s => s) ? 'block' : 'none';
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+            setTimeout(() => { notification.style.display = 'none'; }, 2800);
+        }
+
+        function showConfirmationModal() {
+            const modal = document.getElementById('confirmModal');
+            const modalText = document.getElementById('modalText');
+            let countdown = 3;
+            modalText.innerHTML = `Alev algılandı! Su fışkırtılacak... <span id="countdown">${countdown}</span>`;
+            modal.style.display = 'flex';
+            
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                countdown--;
+                const countdownSpan = document.getElementById('countdown');
+                if(countdownSpan) countdownSpan.textContent = countdown;
+                if (countdown <= 0) clearInterval(countdownInterval);
+            }, 1000);
+
+            if(modalTimeout) clearTimeout(modalTimeout);
+            modalTimeout = setTimeout(() => {
+                modal.style.display = 'none';
+                if (countdownInterval) clearInterval(countdownInterval);
+            }, 4000);
+        }
+
+        // ================== SADECE BU FONKSİYON DÜZELTİLDİ ==================
+        function setupEventHandlers() {
+            debugLog('Event handler\'lar kuruluyor...');
+            
+            document.getElementById('confirmBtn').addEventListener('click', () => {
+                sendCommand(actionResponseTopic, 'CONFIRM');
+                document.getElementById('confirmModal').style.display = 'none';
+                actionPromptShown = false;
+                if (modalTimeout) clearTimeout(modalTimeout);
+                if (countdownInterval) clearInterval(countdownInterval);
+            });
+            
+            document.getElementById('cancelBtn').addEventListener('click', () => {
+                sendCommand(actionResponseTopic, 'CANCEL');
+                document.getElementById('confirmModal').style.display = 'none';
+                actionPromptShown = false;
+                fireDismissed = true;
+
+                if (dismissCooldownTimer) clearTimeout(dismissCooldownTimer);
+                dismissCooldownTimer = setTimeout(() => {
+                    fireDismissed = false;
+                    debugLog("Yangın uyarısı için tekrar izin verildi.");
+                }, 10000);
+
+                if (modalTimeout) clearTimeout(modalTimeout);
+                if (countdownInterval) clearInterval(countdownInterval);
+            });
+            
+            // --- DEĞİŞİKLİK BURADA ---
+            const movementButtons = { "ileri": "b", "geri": "a", "sol": "c", "sag": "d" };
+            for(const [id, cmd] of Object.entries(movementButtons)) {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    const startAction = (e) => {
+                        e.preventDefault();
+                        if (btn.disabled) return;
+                        sendCommand(robotControlTopic, cmd);
+                    };
+                    const stopAction = (e) => {
+                        e.preventDefault();
+                        if (btn.disabled) return;
+                        sendCommand(robotControlTopic, "S");
+                    };
+
+                    // Mobil cihazlar için dokunmatik olaylar
+                    btn.addEventListener("touchstart", startAction, { passive: false });
+                    btn.addEventListener("touchend", stopAction);
+                    btn.addEventListener("touchcancel", stopAction);
+
+                    // Bilgisayar için fare olayları
+                    btn.addEventListener("mousedown", startAction);
+                    btn.addEventListener("mouseup", stopAction);
+                    btn.addEventListener("mouseleave", stopAction);
+                }
+            }
+            // --- DEĞİŞİKLİK SONA ERDİ ---
+            
+            document.getElementById('dur').addEventListener("click", () => sendCommand(robotControlTopic, "S"));
+            
+            servoSlider.addEventListener('change', () => sendCommand(robotControlTopic, 'X' + servoSlider.value));
+            servoSlider.addEventListener('input', () => updateServoUI(servoSlider.value));
+            
+            document.getElementById('servoResetButton').addEventListener('click', () => {
+                sendCommand(robotControlTopic, 'X90');
+                updateServoUI('90');
+            });
+            
+            document.getElementById('turboCheckbox').addEventListener('change', function () { 
+                sendCommand(robotControlTopic, this.checked ? 'T' : 'N'); 
+            });
+            
+            pumpButton.addEventListener('click', function() {
+                const isCurrentlyOn = this.classList.contains('on');
+                // w komutu ESP tarafında durumu toggle ediyorsa bu doğru. Değilse w/W kullanın.
+                sendCommand(robotControlTopic, isCurrentlyOn ? 'w' : 'W'); // Küçük 'w' kapat, Büyük 'W' aç gibi varsayıldı
+            });
+            
+            document.getElementById('autoModeButton').addEventListener('click', function() {
+                const isAuto = !this.classList.contains('on');
+                sendCommand(robotModeTopic, isAuto ? 'AUTO' : 'MANUAL');
+                this.classList.toggle('on', isAuto); 
+                this.classList.toggle('off', !isAuto);
+                this.textContent = `Otomatik Mod: ${isAuto ? 'Açık' : 'Kapalı'}`;
+                
+                Object.keys(movementButtons).concat('dur').forEach(id => { 
+                    const elem = document.getElementById(id);
+                    if (elem) elem.disabled = isAuto; 
+                });
+            });
+            
+            updateServoUI(servoSlider.value);
+            debugLog('Event handler\'lar kuruldu');
+        }
+        
+        window.onload = connectToBroker;
+    </script>
+
+</body></html>
